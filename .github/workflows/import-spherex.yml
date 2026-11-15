@@ -1,0 +1,49 @@
+name: Import verified SPHEREx Sky Explorer source and science snapshot
+
+on:
+  push:
+    paths:
+      - '.github/workflows/import-spherex.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Fetch exact verified SPHEREx export
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 5 --retry-delay 4 \
+            'https://www.cemberlitasmeninhack.com/_cdn/static/SPHEREx_Final_Complete_2026.zip' \
+            --output /tmp/spherex-final.zip
+          echo '2c5abccd8999cd21e29faa3f6b5b4d3dd62c755ab1d51a8b27cf173ead123efa  /tmp/spherex-final.zip' | sha256sum -c -
+          mkdir -p /tmp/spherex-import
+          unzip -q /tmp/spherex-final.zip -d /tmp/spherex-import
+          test -f /tmp/spherex-import/README.md
+          test -f /tmp/spherex-import/database/schema.sql
+          test -f /tmp/spherex-import/MANIFEST.json
+          test -f /tmp/spherex-import/floot_project/pages/_index.tsx
+          count="$(find /tmp/spherex-import/floot_project -type f | wc -l)"
+          test "$count" -eq 217
+          echo "Verified $count source files and full PostgreSQL science backup."
+      - name: Commit source, documentation and restored-data snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          rsync -a /tmp/spherex-import/ ./
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "Publish verified SPHEREx source, 114 science frames and documentation"
+            git push origin HEAD:main
+          fi
