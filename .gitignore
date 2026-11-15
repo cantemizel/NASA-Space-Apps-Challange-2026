@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+node_modules/
+.next/
+dist/
+build/
+__pycache__/
+*.pyc
+.DS_Store
+*.pem
+*.p12
+*.key
+*.secret
+*.log
